@@ -3,6 +3,7 @@ from airflow.operators.python import PythonOperator
 from datetime import datetime, timedelta
 from airflow.sensors.base import PokeReturnValue
 from airflow.hooks.base import BaseHook
+import requests
 
 
 def on_success(context):
@@ -20,14 +21,29 @@ def on_failure(context):
      on_failure_callback = on_failure,
      tags = ['Crypto pipeline']
 )
-def cyrpto_pipe():
+def cyrpto_day_price():
      @task.sensor(
           task_id = 'is_api_available',
           poke_interval = 40,
           timeout = 300,
-          mode = 'poke'
+          mode = 'poke',
+          retries = 3
      )
      def is_api_available() -> PokeReturnValue:
-          pass
+          api = BaseHook.get_connection("crypto-poloiex")
+          url = api.host
+          headers = api.extra_dejson['headers']
+          response = requests.get(url, headers = headers)
+          
+          condition = response.json().get('code') == 400
+          
+          print(f"\n\n{response.json()}\n\n")
+          
+          return PokeReturnValue(
+               is_done = condition,
+               xcom_value = url
+          )
+     
+     is_api_available()
 
-cyrpto_pipe()
+cyrpto_day_price()
