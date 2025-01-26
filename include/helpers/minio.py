@@ -2,11 +2,12 @@ from minio import Minio
 from airflow.hooks.base import BaseHook
 
 def get_minio_client():
-    minio = BaseHook.get_connection('minio').extra_dejson
+    minio = BaseHook.get_connection("crypto-minio")
     client = Minio(
-        endpoint=minio['endpoint_url'].split('//')[1],
-        access_key=minio['aws_access_key_id'],
-        secret_key=minio['aws_secret_access_key'],
-        secure=False
+        endpoint = minio.extra_dejson['endpoint_url'].split('//')[1],
+        access_key = minio.login,
+        secret_key = minio.password,
+        secure = False
     )
+    
     return client

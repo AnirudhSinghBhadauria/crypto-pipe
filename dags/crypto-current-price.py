@@ -1,10 +1,16 @@
+import requests
 from airflow.decorators import task, dag
 from airflow.operators.python import PythonOperator
 from datetime import datetime, timedelta
 from airflow.sensors.base import PokeReturnValue
 from airflow.hooks.base import BaseHook
-import requests
+from include.crypto_pipe.current_price.tasks import (
+     _get_current_price,
+     _format_prices,
+     _store_prices
+)
 
+TICKER = 'BTC_USDT'
 
 def on_success(context):
      return context
@@ -13,8 +19,8 @@ def on_failure(context):
      return context
 
 @dag (
-     start_date = datetime(2025, 1, 1),
-     schedule = '@daily',
+     start_date=datetime(2025, 1, 1, 5, 40),
+     schedule='15 * * * * *',
      catchup = False,
      dagrun_timeout = timedelta(seconds = 60),
      on_success_callback = on_success,
@@ -30,20 +36,47 @@ def cyrpto_current_price():
           retries = 3
      )
      def is_api_available() -> PokeReturnValue:
-          api = BaseHook.get_connection("crypto-poloiex")
+          api = BaseHook.get_connection("crypto-poloniex")
           url = api.host
           headers = api.extra_dejson['headers']
-          response = requests.get(url, headers = headers)
-          
+          response = requests.get(url, headers = headers)    
           condition = response.json().get('code') == 400
-          
-          print(f"\n\n{response.json()}\n\n")
           
           return PokeReturnValue(
                is_done = condition,
-               xcom_value = url
+               xcom_value = f"{url}/{api.extra_dejson['endpoint']}"
           )
+          
+     is_poloniex_available = is_api_available()
+
+     get_current_price = PythonOperator(
+          task_id = 'get_current_price',
+          python_callable = _get_current_price,
+          op_kwargs = {
+               'url': '{{ task_instance.xcom_pull(task_ids = "is_api_available") }}',
+               'ticker': TICKER
+          },
+          retries = 3
+     )
      
-     is_api_available()
+     format_prices = PythonOperator(
+          task_id = 'format_prices',
+          python_callable = _format_prices,
+          op_kwargs = {
+               'price_data': '{{ task_instance.xcom_pull(task_ids = "get_current_price") }}'
+          },
+          retries = 3
+     )
+     
+     store_prices = PythonOperator(
+          task_id = "store_prices",
+          python_callable = _store_prices,
+          op_kwargs = {
+               'formatted_price_data': '{{ task_instance.xcom_pull(task_ids = "format_prices") }}'
+          },
+          retries = 3
+     )        
+          
+     is_poloniex_available >> get_current_price >> format_prices >> store_prices
 
 cyrpto_current_price()
