@@ -1,9 +1,12 @@
 import requests
+from astro import sql as aql
+from astro.files import File
 from airflow.decorators import task, dag
 from airflow.operators.python import PythonOperator
 from datetime import datetime, timedelta
 from airflow.sensors.base import PokeReturnValue
 from airflow.hooks.base import BaseHook
+from astro.sql.table import Table, Metadata
 from include.crypto_pipe.current_price.tasks import (
      _get_current_price,
      _format_prices,
@@ -20,18 +23,18 @@ def on_failure(context):
 
 @dag (
      start_date=datetime(2025, 1, 1, 5, 40),
-     schedule='15 * * * * *',
+     schedule = timedelta(seconds=15),
      catchup = False,
      dagrun_timeout = timedelta(seconds = 60),
      on_success_callback = on_success,
      on_failure_callback = on_failure,
      tags = ['Crypto pipeline']
 )
-def cyrpto_current_price():
+def crypto_current_price():
      @task.sensor(
           task_id = 'is_api_available',
-          poke_interval = 40,
-          timeout = 300,
+          poke_interval = 5,
+          timeout = 30,
           mode = 'poke',
           retries = 3
      )
@@ -75,8 +78,24 @@ def cyrpto_current_price():
                'formatted_price_data': '{{ task_instance.xcom_pull(task_ids = "format_prices") }}'
           },
           retries = 3
+     )
+     
+     load_to_warehouse = aql.load_file(
+          task_id = 'load_to_warehouse',
+          input_file = File(
+               path = f's3://{{{{ task_instance.xcom_pull(task_ids = "store_prices") }}}}',
+               conn_id = 'crypto-minio'
+          ),
+          output_table = Table(
+               name = f'{TICKER}_current_price',
+               conn_id = 'crypto-postgres',
+               metadata = Metadata(
+                    schema = 'public'
+               )
+          ),
+          if_exists = 'replace'    
      )        
           
-     is_poloniex_available >> get_current_price >> format_prices >> store_prices
+     is_poloniex_available >> get_current_price >> format_prices >> store_prices >> load_to_warehouse
 
-cyrpto_current_price()
+crypto_current_price()

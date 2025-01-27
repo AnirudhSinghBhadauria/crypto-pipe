@@ -56,4 +56,6 @@ def _store_prices(formatted_price_data):
      )
      
      return f'{BUCKET_NAME}/{OBJECT_NAME}'
-          
+
+def _load_to_warehouse():
+     print("this is the thing!")         
