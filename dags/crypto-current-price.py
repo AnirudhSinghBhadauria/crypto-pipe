@@ -22,8 +22,9 @@ def on_failure(context):
      return context
 
 @dag (
-     start_date=datetime(2025, 1, 1, 5, 40),
+     start_date=datetime(2025, 2, 1),
      schedule = timedelta(seconds=15),
+     # schedule = '@daily',
      catchup = False,
      dagrun_timeout = timedelta(seconds = 60),
      on_success_callback = on_success,
