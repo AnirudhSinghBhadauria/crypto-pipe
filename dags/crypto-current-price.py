@@ -29,7 +29,7 @@ def on_failure(context):
      dagrun_timeout = timedelta(seconds = 60),
      on_success_callback = on_success,
      on_failure_callback = on_failure,
-     tags = ['Crypto pipeline']
+     tags = ['At moment crypto price']
 )
 def crypto_current_price():
      @task.sensor(
