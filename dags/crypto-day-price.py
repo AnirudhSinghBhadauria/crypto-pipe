@@ -5,7 +5,6 @@ from airflow.sensors.base import PokeReturnValue
 from airflow.hooks.base import BaseHook
 import requests
 
-
 def on_success(context):
      return context
 
@@ -36,8 +35,6 @@ def cyrpto_day_price():
           response = requests.get(url, headers = headers)
           
           condition = response.json().get('code') == 400
-          
-          print(f"\n\n{response.json()}\n\n")
           
           return PokeReturnValue(
                is_done = condition,

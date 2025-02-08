@@ -43,14 +43,14 @@ def crypto_current_price():
           api = BaseHook.get_connection("crypto-poloniex")
           url = api.host
           headers = api.extra_dejson['headers']
-          response = requests.get(url, headers = headers)    
+          response = requests.get(url, headers = headers)
           condition = response.json().get('code') == 400
-          
+
           return PokeReturnValue(
                is_done = condition,
                xcom_value = f"{url}/{api.extra_dejson['endpoint']}"
           )
-          
+
      is_poloniex_available = is_api_available()
 
      get_current_price = PythonOperator(
@@ -62,7 +62,7 @@ def crypto_current_price():
           },
           retries = 3
      )
-     
+
      format_prices = PythonOperator(
           task_id = 'format_prices',
           python_callable = _format_prices,
@@ -71,7 +71,7 @@ def crypto_current_price():
           },
           retries = 3
      )
-     
+
      store_prices = PythonOperator(
           task_id = "store_prices",
           python_callable = _store_prices,
@@ -80,7 +80,7 @@ def crypto_current_price():
           },
           retries = 3
      )
-     
+
      load_to_warehouse = aql.load_file(
           task_id = 'load_to_warehouse',
           input_file = File(
@@ -94,9 +94,9 @@ def crypto_current_price():
                     schema = 'public'
                )
           ),
-          if_exists = 'replace'    
-     )        
-          
+          if_exists = 'replace'
+     )
+
      is_poloniex_available >> get_current_price >> format_prices >> store_prices >> load_to_warehouse
 
 crypto_current_price()
