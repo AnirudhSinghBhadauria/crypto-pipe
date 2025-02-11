@@ -1,1 +1,2 @@
 minio==7.1.14
+google-api-python-client == 2.160.0
